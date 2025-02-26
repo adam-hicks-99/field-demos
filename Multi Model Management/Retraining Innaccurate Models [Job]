@@ -1,0 +1,132 @@
+{
+  "name": "Retraining Inaccurate Models ",
+  "email_notifications": {
+    "no_alert_for_skipped_runs": false
+  },
+  "webhook_notifications": {},
+  "timeout_seconds": 0,
+  "max_concurrent_runs": 1,
+  "tasks": [
+    {
+      "task_key": "Update_Model_Accuracy",
+      "run_if": "ALL_SUCCESS",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/adam.hicks@databricks.com/field-demos/Multi Model Management/Reset Model Accuracy",
+        "base_parameters": {
+          "min_accuracy": ".5",
+          "max_accuracy": ".7"
+        },
+        "source": "WORKSPACE"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {}
+    },
+    {
+      "task_key": "Update_Master_Model_Log",
+      "depends_on": [
+        {
+          "task_key": "Update_Model_Accuracy"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/adam.hicks@databricks.com/field-demos/Multi Model Management/Generate Master Model Log",
+        "source": "WORKSPACE"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {}
+    },
+    {
+      "task_key": "Identify_Retraining_Needs",
+      "depends_on": [
+        {
+          "task_key": "Update_Master_Model_Log"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/adam.hicks@databricks.com/field-demos/Multi Model Management/Identify Retraining Candidates",
+        "source": "WORKSPACE"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {}
+    },
+    {
+      "task_key": "For_Each_Inaccurate_Model",
+      "depends_on": [
+        {
+          "task_key": "Identify_Retraining_Needs"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "for_each_task": {
+        "inputs": "{{tasks.Identify_Retraining_Needs.values.retrain_candidates}}",
+        "task": {
+          "task_key": "TrainAndScore_Challenger",
+          "run_if": "ALL_SUCCESS",
+          "notebook_task": {
+            "notebook_path": "/Workspace/Users/adam.hicks@databricks.com/field-demos/Multi Model Management/Train And Score Model",
+            "base_parameters": {
+              "model_name": "{{input}}"
+            },
+            "source": "WORKSPACE"
+          },
+          "timeout_seconds": 0,
+          "email_notifications": {},
+          "webhook_notifications": {}
+        }
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {}
+    },
+    {
+      "task_key": "Update_Master_Model_Log_2",
+      "depends_on": [
+        {
+          "task_key": "For_Each_Inaccurate_Model"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/adam.hicks@databricks.com/field-demos/Multi Model Management/Generate Master Model Log",
+        "source": "WORKSPACE"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {}
+    },
+    {
+      "task_key": "Alert_Team",
+      "depends_on": [
+        {
+          "task_key": "Update_Master_Model_Log_2"
+        }
+      ],
+      "run_if": "ALL_SUCCESS",
+      "sql_task": {
+        "alert": {
+          "alert_id": "d4a2c887-9ffc-4095-b055-c49a9a860162",
+          "subscriptions": [
+            {
+              "user_name": "adam.hicks@databricks.com"
+            }
+          ]
+        },
+        "warehouse_id": "fbfec7ebc003aab7"
+      },
+      "timeout_seconds": 0,
+      "email_notifications": {},
+      "webhook_notifications": {}
+    }
+  ],
+  "queue": {
+    "enabled": true
+  },
+  "run_as": {
+    "user_name": "adam.hicks@databricks.com"
+  }
+}
